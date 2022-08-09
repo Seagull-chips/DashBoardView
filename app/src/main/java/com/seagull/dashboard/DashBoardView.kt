@@ -17,36 +17,36 @@ class DashBoardView @JvmOverloads constructor(
     context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0
 ) : View(context, attrs, defStyleAttr) {
 
-    companion object{
+    companion object {
         private val DEFAULT_COLOR_MIDDLE: Int = Color.parseColor("#228fbd") //刻度颜色
-        private const val DEFAULT_COLOR_TITLE: Int = Color.WHITE
-        private const val DEFAULT_TEXT_SIZE_DIAL = 11
-        private const val DEFAULT_STROKE_WIDTH = 2
-        private const val DEFAULT_RADIUS_DIAL = 128
-        private const val DEFAULT_TITLE_SIZE = 22
-        private const val DEFAULT_ANIM_PLAY_TIME = 2000
-        private const val DEFAULT_BORDER = 5   //
+        private const val DEFAULT_COLOR_TITLE: Int = Color.WHITE //默认文字画笔颜色
+        private const val DEFAULT_TEXT_SIZE_DIAL = 11 //默认刻度数字大小
+        private const val DEFAULT_STROKE_WIDTH = 2  //默认最外发光圆弧宽度
+        private const val DEFAULT_RADIUS_DIAL = 128 //默认半径大小
+        private const val DEFAULT_TITLE_SIZE = 22   //默认中间速度文字大小
+        private const val DEFAULT_ANIM_PLAY_TIME = 1000 // 默认扫描动画缓冲时间 原来为2000
+        private const val DEFAULT_BORDER = 5   // 发光圆弧外边距
     }
 
     private var colorDialMiddle = 0 //刻度颜色
-    private var textSizeDial = 0
+    private var textSizeDial = 0    //刻度数字
     private var strokeWidthDial = 0  //最外发光圆弧宽度
-    private var titleDialSize = 0
-    private var titleDialColor = 0
-    private var animPlayTime = 0
+    private var titleDialSize = 0   //中间文字大小
+    private var titleDialColor = 0  //中间文字颜色
+    private var animPlayTime = 0    //动画播放时间
     private val openAngle = 120f // 底部开口的角度
 
-    private var radiusDial = 0
+    private var radiusDial = 0 //最大圆的半径
     private var mRealRadius = 0
     private var currentValue = 0f
-    private var clockPointNum = 230 //圆盘刻度总数
-    private var clockMinValue = 0
+    private var clockPointNum = 100 //圆盘刻度总数
+    private var clockMinValue = 0   //疑似圆盘初始值
     private var dataUnit = "km/h"  //中间显示文字
 
     private var arcPaint: Paint? = null  //圆弧的画笔
     private var mRect: RectF? = null
     private var pointerPaint: Paint? = null
-    private var fontMetrics: Paint.FontMetrics? = null
+    private var fontMetrics: Paint.FontMetrics? = null //这玩意儿是绘制文本内容时存储该文本内容位置信息的一个类。
     private var titlePaint: Paint? = null
     private var pointerPath: Path? = null
 
@@ -58,8 +58,9 @@ class DashBoardView @JvmOverloads constructor(
         initPaint()
     }
 
+    //属性
     private fun initAttrs(context: Context, attrs: AttributeSet) {
-        val attributes = context.obtainStyledAttributes(attrs,R.styleable.DashBoardView)
+        val attributes = context.obtainStyledAttributes(attrs, R.styleable.DashBoardView)
         colorDialMiddle = attributes.getColor(
             R.styleable.DashBoardView_color_dial_middle, DEFAULT_COLOR_MIDDLE
         )
@@ -91,6 +92,7 @@ class DashBoardView @JvmOverloads constructor(
         attributes.recycle()
     }
 
+    //画笔
     private fun initPaint() {
         arcPaint = Paint(Paint.ANTI_ALIAS_FLAG)
         arcPaint!!.style = Paint.Style.STROKE
@@ -109,7 +111,7 @@ class DashBoardView @JvmOverloads constructor(
         pointerPath = Path()
     }
 
-
+    //设置表盘数值范围以及显示文字
     private fun setClockPointNum(clockPointNum: Int) {
         this.clockPointNum = clockPointNum
         postInvalidate()
@@ -168,6 +170,8 @@ class DashBoardView @JvmOverloads constructor(
         drawArc(canvas!!)
         //        step2 绘制刻度和数字
         drawPointerLine(canvas)
+        //表盘范围设置为0-160
+        setClockValueArea(0,160,"km/h")
         //        step3 画指针阴影
         drawPointShadow(canvas)
         //        step4 绘制中间黑色圆形背景
@@ -183,7 +187,10 @@ class DashBoardView @JvmOverloads constructor(
 
     //绘制发光弧形
     private fun drawArc(canvas: Canvas) {
-        canvas.translate((paddingLeft + radiusDial).toFloat(), (paddingTop + radiusDial).toFloat())
+        canvas.translate(
+            (paddingLeft + radiusDial).toFloat(),
+            (paddingTop + radiusDial).toFloat()
+        ) //画布平移(x,y)
         arcPaint?.shader = null //设置着色器
         arcPaint?.style = Paint.Style.STROKE //只绘制图形轮廓（描边）
         arcPaint?.isAntiAlias = true //是否抗锯齿
@@ -235,19 +242,21 @@ class DashBoardView @JvmOverloads constructor(
                     pointerPaint!!
                 )
             }
-            canvas.rotate((360 - openAngle) / clockPointNum)
+            canvas.rotate((360 - openAngle) / clockPointNum) //不停旋转画布坐标系绘制刻度
         }
-        canvas.rotate(-((180 - openAngle) / 2 + ((360 - openAngle) / clockPointNum)))
+        canvas.rotate(-((180 - openAngle) / 2 + ((360 - openAngle) / clockPointNum))) //暂不明确，疑似画布复位
     }
 
     //刻度下的数字
     private fun drawPointerText(canvas: Canvas, i: Int) {
         canvas.save()
-        pointerPaint!!.color = resources.getColor(R.color.white, null)
+
+        pointerPaint!!.color = resources.getColor(R.color.white, null) //设置文字颜色
         val currentCenterX =
-            (radiusDial - strokeWidthDial - dp2px(21) - pointerPaint!!.measureText(i.toString()) / 2).toInt()
-        canvas.translate(currentCenterX.toFloat(), 0f)
-        canvas.rotate(360 - 150 - (360 - openAngle) / clockPointNum * i) //坐标系总旋转角度为360度
+            (radiusDial - strokeWidthDial - dp2px(21) - pointerPaint!!.measureText(i.toString()) / 2)
+        canvas.translate(currentCenterX, 0f)
+        //旋转画布去画text
+        canvas.rotate(360 - 150 - (360 - openAngle) / clockPointNum * i)
         val textBaseLine =
             (0 + (fontMetrics!!.bottom - fontMetrics!!.top) / 2 - fontMetrics!!.bottom).toInt()
         canvas.drawText((i + clockMinValue).toString(), 0f, textBaseLine.toFloat(), pointerPaint!!)
@@ -259,19 +268,21 @@ class DashBoardView @JvmOverloads constructor(
         val currentDegree =
             ((currentValue - clockMinValue) * ((360 - openAngle) / clockPointNum) + 150).toInt()
         canvas.rotate(currentDegree.toFloat())
-        val colorSweep = intArrayOf(-0x55001614, 0x0028E9EC, -0x55d71614)
+        val colorSweep = intArrayOf(-0x55001614, 0x0028E9EC, -0x55d71614) //疑似扫过的颜色
         val position = floatArrayOf(0f, 0.9f, 1f)
-        val mShader = SweepGradient(0f, 0f, colorSweep, position)
+        val mShader = SweepGradient(0f, 0f, colorSweep, position) //围绕中心点绘制扫描渐变的着色器
         arcPaint!!.shader = mShader
         arcPaint!!.style = Paint.Style.STROKE
         arcPaint!!.strokeWidth = (radiusDial * 0.4).toFloat()
         arcPaint!!.clearShadowLayer()
+        //绘制矩形
         val mRect = RectF(
             (-mRealRadius - DEFAULT_BORDER + radiusDial * 0.2).toFloat(),
             (-mRealRadius - DEFAULT_BORDER + radiusDial * 0.2).toFloat(),
             (mRealRadius + DEFAULT_BORDER - radiusDial * 0.2).toFloat(),
             (mRealRadius + DEFAULT_BORDER - radiusDial * 0.2).toFloat()
         )
+        //绘制圆弧
         canvas.drawArc(
             mRect,
             (360 - (currentDegree - 150)).toFloat(),
@@ -324,7 +335,7 @@ class DashBoardView @JvmOverloads constructor(
 
     //7.绘制表盘文字
     private fun drawCircleText(canvas: Canvas) {
-        titlePaint!!.color = Color.WHITE
+        //titlePaint!!.color = Color.WHITE
         titlePaint!!.color = titleDialColor
         titlePaint!!.textSize = titleDialSize.toFloat()
         canvas.drawText(formatData(currentValue)!!, 0f, 0f, titlePaint!!)
@@ -334,6 +345,11 @@ class DashBoardView @JvmOverloads constructor(
     }
     //8.添加底部控件
 
+    //9.动画
+    //百分比
+    fun setPercent(percent: Int) {
+        setCompleteDegree(percent.toFloat())
+    }
 
     fun setCompleteDegree(degree: Float) {
         val animator = ValueAnimator.ofFloat(currentValue, degree)
@@ -347,19 +363,15 @@ class DashBoardView @JvmOverloads constructor(
         animator.start()
     }
 
-    //dp转px
-    private fun dp2px(dpValue: Int): Int {
-        val scale = context!!.resources.displayMetrics.density
-        return (dpValue * scale + 0.5f).toInt()
-    }
 
-    //    private fun dp2px(dpVal: Int): Int {
-    //        return TypedValue.applyDimension(
-    //            TypedValue.COMPLEX_UNIT_DIP,
-    //            dpVal.toFloat(),
-    //            resources.displayMetrics
-    //        ).toInt()
-    //    }
+    //dp转px
+        private fun dp2px(dpVal: Int): Int {
+            return TypedValue.applyDimension(
+                TypedValue.COMPLEX_UNIT_DIP,
+                dpVal.toFloat(),
+                resources.displayMetrics
+            ).toInt()
+        }
 
     //sp转px
     private fun sp2px(spVal: Int): Int {
