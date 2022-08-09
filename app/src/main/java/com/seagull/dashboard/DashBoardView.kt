@@ -9,20 +9,24 @@ import android.util.TypedValue
 import android.view.View
 import android.view.animation.AccelerateDecelerateInterpolator
 import java.text.DecimalFormat
+import kotlin.math.min
+import kotlin.math.round
 
 
 class DashBoardView @JvmOverloads constructor(
     context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0
 ) : View(context, attrs, defStyleAttr) {
 
-    private val DEFAULT_COLOR_MIDDLE: Int = Color.parseColor("#228fbd") //刻度颜色
-    private val DEFAULT_COLOR_TITLE: Int = Color.WHITE
-    private val DEFAULT_TEXT_SIZE_DIAL = 11
-    private val DEFAULT_STROKE_WIDTH = 2
-    private val DEFAULT_RADIUS_DIAL = 128
-    private val DEFAULT_TITLE_SIZE = 22
-    private val DEFAULT_ANIM_PLAY_TIME = 2000
-    private val DEFAULT_border = 5   //
+    companion object{
+        private val DEFAULT_COLOR_MIDDLE: Int = Color.parseColor("#228fbd") //刻度颜色
+        private const val DEFAULT_COLOR_TITLE: Int = Color.WHITE
+        private const val DEFAULT_TEXT_SIZE_DIAL = 11
+        private const val DEFAULT_STROKE_WIDTH = 2
+        private const val DEFAULT_RADIUS_DIAL = 128
+        private const val DEFAULT_TITLE_SIZE = 22
+        private const val DEFAULT_ANIM_PLAY_TIME = 2000
+        private const val DEFAULT_BORDER = 5   //
+    }
 
     private var colorDialMiddle = 0 //刻度颜色
     private var textSizeDial = 0
@@ -35,9 +39,9 @@ class DashBoardView @JvmOverloads constructor(
     private var radiusDial = 0
     private var mRealRadius = 0
     private var currentValue = 0f
-    private var clockPointNum = 230 //圆盘刻度点数，假设有一百
+    private var clockPointNum = 230 //圆盘刻度总数
     private var clockMinValue = 0
-    private var dataUnit = "km/h"
+    private var dataUnit = "km/h"  //中间显示文字
 
     private var arcPaint: Paint? = null  //圆弧的画笔
     private var mRect: RectF? = null
@@ -55,36 +59,34 @@ class DashBoardView @JvmOverloads constructor(
     }
 
     private fun initAttrs(context: Context, attrs: AttributeSet) {
-        val attributes = context.obtainStyledAttributes(attrs, R.styleable.DashboardView)
+        val attributes = context.obtainStyledAttributes(attrs,R.styleable.DashBoardView)
         colorDialMiddle = attributes.getColor(
-            R.styleable.DashboardView_color_dial_middle, DEFAULT_COLOR_MIDDLE
+            R.styleable.DashBoardView_color_dial_middle, DEFAULT_COLOR_MIDDLE
         )
         textSizeDial = attributes.getDimension(
-            R.styleable.DashboardView_text_size_dial,
+            R.styleable.DashBoardView_text_size_dial,
             sp2px(DEFAULT_TEXT_SIZE_DIAL).toFloat()
         ).toInt()
-
         strokeWidthDial = attributes.getDimension(
-            R.styleable.DashboardView_stroke_width_dial, dp2px(
-                DEFAULT_STROKE_WIDTH.toFloat()
-            ).toFloat()
+            R.styleable.DashBoardView_stroke_width_dial,
+            dp2px(DEFAULT_STROKE_WIDTH).toFloat()
         ).toInt()
         radiusDial = attributes.getDimension(
-            R.styleable.DashboardView_radius_circle_dial, dp2px(
-                DEFAULT_RADIUS_DIAL.toFloat()
-            ).toFloat()
+            R.styleable.DashBoardView_radius_circle_dial,
+            dp2px(DEFAULT_RADIUS_DIAL).toFloat()
         ).toInt()
         titleDialSize = attributes.getDimension(
-            R.styleable.DashboardView_text_title_size, dp2px(
-                DEFAULT_TITLE_SIZE.toFloat()
-            ).toFloat()
+            R.styleable.DashBoardView_text_title_size,
+            dp2px(DEFAULT_TITLE_SIZE).toFloat()
         ).toInt()
         titleDialColor = attributes.getColor(
-            R.styleable.DashboardView_text_title_color, DEFAULT_COLOR_TITLE
-        ).toFloat().toInt()
+            R.styleable.DashBoardView_text_title_color,
+            DEFAULT_COLOR_TITLE
+        )
         animPlayTime = attributes.getInt(
-            R.styleable.DashboardView_animator_play_time, DEFAULT_ANIM_PLAY_TIME
-        ).toFloat().toInt()
+            R.styleable.DashBoardView_animator_play_time,
+            DEFAULT_ANIM_PLAY_TIME
+        )
 
         attributes.recycle()
     }
@@ -94,18 +96,21 @@ class DashBoardView @JvmOverloads constructor(
         arcPaint!!.style = Paint.Style.STROKE
         arcPaint!!.strokeWidth = strokeWidthDial.toFloat()
         arcPaint!!.setShadowLayer(10f, 0f, 0f, Color.parseColor("#35FCFB"))
+
         pointerPaint = Paint(Paint.ANTI_ALIAS_FLAG)
         pointerPaint!!.textSize = textSizeDial.toFloat()
         pointerPaint!!.textAlign = Paint.Align.CENTER
         fontMetrics = pointerPaint!!.fontMetrics
+
         titlePaint = Paint(Paint.ANTI_ALIAS_FLAG)
         titlePaint!!.textAlign = Paint.Align.CENTER
         titlePaint!!.isFakeBoldText = true
+
         pointerPath = Path()
     }
 
 
-    fun setClockPointNum(clockPointNum: Int) {
+    private fun setClockPointNum(clockPointNum: Int) {
         this.clockPointNum = clockPointNum
         postInvalidate()
     }
@@ -118,10 +123,12 @@ class DashBoardView @JvmOverloads constructor(
 
     @SuppressLint("DrawAllocation")
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
+
         val widthMode = MeasureSpec.getMode(widthMeasureSpec)
         val widthSize = MeasureSpec.getSize(widthMeasureSpec)
         val heightMode = MeasureSpec.getMode(heightMeasureSpec)
         val heightSize = MeasureSpec.getSize(heightMeasureSpec)
+
         var mWidth: Int
         var mHeight: Int
         if (widthMode == MeasureSpec.EXACTLY) {
@@ -129,26 +136,29 @@ class DashBoardView @JvmOverloads constructor(
         } else {
             mWidth = paddingLeft + radiusDial * 2 + paddingRight
             if (widthMode == MeasureSpec.AT_MOST) {
-                mWidth = Math.min(mWidth, widthSize)
+                mWidth = min(mWidth, widthSize)
             }
         }
+
         if (heightMode == MeasureSpec.EXACTLY) {
             mHeight = heightSize
         } else {
             mHeight = paddingTop + radiusDial * 2 + paddingBottom
             if (heightMode == MeasureSpec.AT_MOST) {
-                mHeight = Math.min(mHeight, heightSize)
+                mHeight = min(mHeight, heightSize)
             }
         }
+
         setMeasuredDimension(mWidth, mHeight)
-        radiusDial = Math.min(
+
+        radiusDial = min(
             measuredWidth - paddingLeft - paddingRight,
             measuredHeight - paddingTop - paddingBottom
         ) / 2
-        mRealRadius = radiusDial - strokeWidthDial / 2 - DEFAULT_border * 2
+        mRealRadius = radiusDial - strokeWidthDial / 2 - DEFAULT_BORDER * 2
         mRect = RectF(
-            (-mRealRadius - DEFAULT_border).toFloat(), (-mRealRadius - DEFAULT_border).toFloat(),
-            (mRealRadius + DEFAULT_border).toFloat(), (mRealRadius + DEFAULT_border).toFloat()
+            (-mRealRadius - DEFAULT_BORDER).toFloat(), (-mRealRadius - DEFAULT_BORDER).toFloat(),
+            (mRealRadius + DEFAULT_BORDER).toFloat(), (mRealRadius + DEFAULT_BORDER).toFloat()
         )
     }
 
@@ -168,8 +178,8 @@ class DashBoardView @JvmOverloads constructor(
         drawBlueCircle(canvas)
         //        step7 绘制表盘中的数字
         drawCircleText(canvas)
-    }
 
+    }
 
     //绘制发光弧形
     private fun drawArc(canvas: Canvas) {
@@ -201,16 +211,16 @@ class DashBoardView @JvmOverloads constructor(
     //绘制刻度和数字
     private fun drawPointerLine(canvas: Canvas) {
         canvas.rotate(150f) //旋转画布
-        for (i in 0..clockPointNum ) {
+        for (i in 0..clockPointNum) {
             pointerPaint?.color = colorDialMiddle //设置刻度颜色
             if (i % 10 == 0) {    //长表针
                 pointerPaint?.strokeWidth = 3f //刻度宽度
                 // 该方法用于在画布上绘制直线，通过指定直线的两个端点坐标来绘制。
                 // 该方法只能绘制单条直线；如果需要同时绘制多条直线，则可以使用drawLines方法。
-                canvas.drawLine(
-                    (radiusDial - DEFAULT_border - strokeWidthDial).toFloat(),
+                canvas.drawLine(    //传参起点坐标,终点坐标,画笔
+                    (radiusDial - DEFAULT_BORDER - strokeWidthDial).toFloat(),
                     0f,
-                    (radiusDial - strokeWidthDial - dp2px(15f)).toFloat(),
+                    (radiusDial - strokeWidthDial - dp2px(15)).toFloat(),
                     0f,
                     pointerPaint!!
                 )
@@ -218,9 +228,9 @@ class DashBoardView @JvmOverloads constructor(
             } else if (i % 5 == 0) {    //短表针
                 pointerPaint?.strokeWidth = 2f
                 canvas.drawLine(
-                    (radiusDial - DEFAULT_border - strokeWidthDial).toFloat(),
+                    (radiusDial - DEFAULT_BORDER - strokeWidthDial).toFloat(),
                     0f,
-                    (radiusDial - strokeWidthDial - dp2px(9f)).toFloat(),
+                    (radiusDial - strokeWidthDial - dp2px(9)).toFloat(),
                     0f,
                     pointerPaint!!
                 )
@@ -235,7 +245,7 @@ class DashBoardView @JvmOverloads constructor(
         canvas.save()
         pointerPaint!!.color = resources.getColor(R.color.white, null)
         val currentCenterX =
-            (radiusDial - strokeWidthDial - dp2px(21f) - pointerPaint!!.measureText(i.toString()) / 2).toInt()
+            (radiusDial - strokeWidthDial - dp2px(21) - pointerPaint!!.measureText(i.toString()) / 2).toInt()
         canvas.translate(currentCenterX.toFloat(), 0f)
         canvas.rotate(360 - 150 - (360 - openAngle) / clockPointNum * i) //坐标系总旋转角度为360度
         val textBaseLine =
@@ -257,10 +267,10 @@ class DashBoardView @JvmOverloads constructor(
         arcPaint!!.strokeWidth = (radiusDial * 0.4).toFloat()
         arcPaint!!.clearShadowLayer()
         val mRect = RectF(
-            (-mRealRadius - DEFAULT_border + radiusDial * 0.2).toFloat(),
-            (-mRealRadius - DEFAULT_border + radiusDial * 0.2).toFloat(),
-            (mRealRadius + DEFAULT_border - radiusDial * 0.2).toFloat(),
-            (mRealRadius + DEFAULT_border - radiusDial * 0.2).toFloat()
+            (-mRealRadius - DEFAULT_BORDER + radiusDial * 0.2).toFloat(),
+            (-mRealRadius - DEFAULT_BORDER + radiusDial * 0.2).toFloat(),
+            (mRealRadius + DEFAULT_BORDER - radiusDial * 0.2).toFloat(),
+            (mRealRadius + DEFAULT_BORDER - radiusDial * 0.2).toFloat()
         )
         canvas.drawArc(
             mRect,
@@ -270,6 +280,7 @@ class DashBoardView @JvmOverloads constructor(
             arcPaint!!
         )
     }
+
     //4.绘制中间黑色圆形背景
     private fun drawBlackCircle(canvas: Canvas) {
         canvas.restore()
@@ -280,6 +291,7 @@ class DashBoardView @JvmOverloads constructor(
         pointerPaint.color = Color.parseColor("#05002D")
         canvas.drawCircle(0f, 0f, (radiusDial * 0.6).toFloat(), pointerPaint)
     }
+
     //5.绘制表针
     private fun drawPointer(canvas: Canvas) {
         canvas.save()
@@ -288,15 +300,16 @@ class DashBoardView @JvmOverloads constructor(
         canvas.rotate(currentDegree.toFloat())
         titlePaint!!.color = Color.WHITE
         titlePaint!!.isAntiAlias = true
-        pointerPath!!.moveTo((radiusDial - dp2px(12f)).toFloat(), 0f)
-        pointerPath!!.lineTo(0f, (-dp2px(5f)).toFloat())
+        pointerPath!!.moveTo((radiusDial - dp2px(12)).toFloat(), 0f)
+        pointerPath!!.lineTo(0f, (-dp2px(5)).toFloat())
         pointerPath!!.lineTo(-12f, 0f)
-        pointerPath!!.lineTo(0f, dp2px(5f).toFloat())
+        pointerPath!!.lineTo(0f, dp2px(5).toFloat())
         pointerPath!!.close()
         canvas.drawPath(pointerPath!!, titlePaint!!)
         canvas.save()
         canvas.restore()
     }
+
     //6.绘制深蓝色发光圆形
     private fun drawBlueCircle(canvas: Canvas) {
         canvas.rotate(0f)
@@ -308,6 +321,7 @@ class DashBoardView @JvmOverloads constructor(
         pointerPaint.setShadowLayer(15f, 0f, 0f, Color.parseColor("#006EC6"))
         canvas.drawCircle(0f, 0f, (radiusDial * 0.4).toFloat(), pointerPaint)
     }
+
     //7.绘制表盘文字
     private fun drawCircleText(canvas: Canvas) {
         titlePaint!!.color = Color.WHITE
@@ -316,13 +330,25 @@ class DashBoardView @JvmOverloads constructor(
         canvas.drawText(formatData(currentValue)!!, 0f, 0f, titlePaint!!)
         titlePaint!!.color = Color.parseColor("#38F9FD")
         titlePaint!!.textSize = sp2px(14).toFloat()
-        canvas.drawText("($dataUnit)", 0f, dp2px(18f).toFloat(), titlePaint!!)
+        canvas.drawText("($dataUnit)", 0f, dp2px(18).toFloat(), titlePaint!!)
     }
     //8.添加底部控件
 
 
+    fun setCompleteDegree(degree: Float) {
+        val animator = ValueAnimator.ofFloat(currentValue, degree)
+        animator.addUpdateListener { animation ->
+            currentValue =
+                round(animation.animatedValue as Float * 10) / 10
+            invalidate()
+        }
+        animator.interpolator = AccelerateDecelerateInterpolator()
+        animator.duration = animPlayTime.toLong()
+        animator.start()
+    }
+
     //dp转px
-    private fun dp2px(dpValue: Float): Int {
+    private fun dp2px(dpValue: Int): Int {
         val scale = context!!.resources.displayMetrics.density
         return (dpValue * scale + 0.5f).toInt()
     }
@@ -343,20 +369,9 @@ class DashBoardView @JvmOverloads constructor(
             resources.displayMetrics
         ).toInt()
     }
-    protected fun formatData(num: Float): String? {
+
+    private fun formatData(num: Float): String? {
         val decimalFormat = DecimalFormat("###.#")
         return decimalFormat.format(num)
-    }
-
-    fun setCompleteDegree(degree: Float) {
-        val animator = ValueAnimator.ofFloat(currentValue, degree)
-        animator.addUpdateListener { animation ->
-            currentValue =
-                Math.round(animation.animatedValue as Float * 10).toFloat() / 10
-            invalidate()
-        }
-        animator.interpolator = AccelerateDecelerateInterpolator()
-        animator.duration = animPlayTime.toLong()
-        animator.start()
     }
 }

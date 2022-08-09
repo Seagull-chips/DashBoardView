@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!-- 仪表盘自定义属性 -->
-    <declare-styleable name="DashboardView">
+    <declare-styleable name="DashBoardView">
         <attr name="color_dial_lower" format="color" />
         <attr name="color_dial_middle" format="color" />
         <attr name="color_dial_high" format="color" />
