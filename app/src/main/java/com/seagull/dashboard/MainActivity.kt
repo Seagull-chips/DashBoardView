@@ -6,6 +6,12 @@ import android.widget.SeekBar.OnSeekBarChangeListener
 import androidx.appcompat.app.AppCompatActivity
 import com.seagull.dashboard.databinding.ActivityMainBinding
 
+/**
+ * @author songyinan
+ * @email songynes@foxmail.com
+ * @creat 2022-08-10
+ * */
+
 class MainActivity : AppCompatActivity() {
     private lateinit var binding: ActivityMainBinding
 
