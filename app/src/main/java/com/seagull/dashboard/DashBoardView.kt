@@ -13,7 +13,7 @@ import kotlin.math.min
 import kotlin.math.round
 
 
-class DashBoardView @JvmOverloads constructor(
+open class DashBoardView @JvmOverloads constructor(
     context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0
 ) : View(context, attrs, defStyleAttr) {
 
@@ -26,6 +26,7 @@ class DashBoardView @JvmOverloads constructor(
         private const val DEFAULT_TITLE_SIZE = 22   //默认中间速度文字大小
         private const val DEFAULT_ANIM_PLAY_TIME = 1000 // 默认扫描动画缓冲时间 原来为2000
         private const val DEFAULT_BORDER = 5   // 发光圆弧外边距
+        private const val DEFAULT_CLOCK_POINT_NUM = 100   // 默认表盘
     }
 
     private var colorDialMiddle = 0 //刻度颜色
@@ -88,7 +89,15 @@ class DashBoardView @JvmOverloads constructor(
             R.styleable.DashBoardView_animator_play_time,
             DEFAULT_ANIM_PLAY_TIME
         )
+        dataUnit= attributes.getString(
+            R.styleable.DashBoardView_text_data_unit
+        ).toString()
 
+        clockPointNum=
+            attributes.getInt(
+                R.styleable.DashBoardView_text_clock_point_num,
+                DEFAULT_CLOCK_POINT_NUM
+            )
         attributes.recycle()
     }
 
@@ -111,17 +120,7 @@ class DashBoardView @JvmOverloads constructor(
         pointerPath = Path()
     }
 
-    //设置表盘数值范围以及显示文字
-    private fun setClockPointNum(clockPointNum: Int) {
-        this.clockPointNum = clockPointNum
-        postInvalidate()
-    }
 
-    fun setClockValueArea(clockMinValue: Int, clockMaxValue: Int, dataUnit: String?) {
-        this.clockMinValue = clockMinValue
-        this.dataUnit = dataUnit!!
-        setClockPointNum(clockMaxValue - clockMinValue)
-    }
 
     @SuppressLint("DrawAllocation")
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
@@ -170,8 +169,6 @@ class DashBoardView @JvmOverloads constructor(
         drawArc(canvas!!)
         //        step2 绘制刻度和数字
         drawPointerLine(canvas)
-        //表盘范围设置为0-160
-        setClockValueArea(0,160,"km/h")
         //        step3 画指针阴影
         drawPointShadow(canvas)
         //        step4 绘制中间黑色圆形背景
@@ -186,7 +183,7 @@ class DashBoardView @JvmOverloads constructor(
     }
 
     //绘制发光弧形
-    private fun drawArc(canvas: Canvas) {
+    fun drawArc(canvas: Canvas) {
         canvas.translate(
             (paddingLeft + radiusDial).toFloat(),
             (paddingTop + radiusDial).toFloat()
@@ -216,9 +213,17 @@ class DashBoardView @JvmOverloads constructor(
     }
 
     //绘制刻度和数字
-    private fun drawPointerLine(canvas: Canvas) {
+    fun drawPointerLine(canvas: Canvas) {
         canvas.rotate(150f) //旋转画布
-        for (i in 0..clockPointNum) {
+        var clockPointTmpNum= 0
+        var numBigFlag=true;
+        if(clockPointNum/10<10){
+            numBigFlag=false
+            clockPointTmpNum=clockPointNum*10
+        }else{
+            clockPointTmpNum=clockPointNum
+        }
+        for (i in 0..clockPointTmpNum) {
             pointerPaint?.color = colorDialMiddle //设置刻度颜色
             if (i % 10 == 0) {    //长表针
                 pointerPaint?.strokeWidth = 3f //刻度宽度
@@ -231,7 +236,7 @@ class DashBoardView @JvmOverloads constructor(
                     0f,
                     pointerPaint!!
                 )
-                drawPointerText(canvas, i)
+                drawPointerText(canvas, i,clockPointTmpNum,numBigFlag)
             } else if (i % 5 == 0) {    //短表针
                 pointerPaint?.strokeWidth = 2f
                 canvas.drawLine(
@@ -242,13 +247,13 @@ class DashBoardView @JvmOverloads constructor(
                     pointerPaint!!
                 )
             }
-            canvas.rotate((360 - openAngle) / clockPointNum) //不停旋转画布坐标系绘制刻度
+            canvas.rotate((360 - openAngle) / clockPointTmpNum) //不停旋转画布坐标系绘制刻度
         }
-        canvas.rotate(-((180 - openAngle) / 2 + ((360 - openAngle) / clockPointNum))) //暂不明确，疑似画布复位
+        canvas.rotate(-((180 - openAngle) / 2 + ((360 - openAngle) / clockPointTmpNum))) //暂不明确，疑似画布复位
     }
 
     //刻度下的数字
-    private fun drawPointerText(canvas: Canvas, i: Int) {
+    private fun drawPointerText(canvas: Canvas, i: Int,clockPointTmpNum:Int,numBigFlag:Boolean) {
         canvas.save()
 
         pointerPaint!!.color = resources.getColor(R.color.white, null) //设置文字颜色
@@ -256,15 +261,20 @@ class DashBoardView @JvmOverloads constructor(
             (radiusDial - strokeWidthDial - dp2px(21) - pointerPaint!!.measureText(i.toString()) / 2)
         canvas.translate(currentCenterX, 0f)
         //旋转画布去画text
-        canvas.rotate(360 - 150 - (360 - openAngle) / clockPointNum * i)
+        canvas.rotate(360 - 150 - (360 - openAngle) / clockPointTmpNum * i)
         val textBaseLine =
             (0 + (fontMetrics!!.bottom - fontMetrics!!.top) / 2 - fontMetrics!!.bottom).toInt()
-        canvas.drawText((i + clockMinValue).toString(), 0f, textBaseLine.toFloat(), pointerPaint!!)
+        if(numBigFlag){
+            canvas.drawText((i + clockMinValue).toString(), 0f, textBaseLine.toFloat(), pointerPaint!!)
+        }else{
+            canvas.drawText(((i/10) + clockMinValue).toString(), 0f, textBaseLine.toFloat(), pointerPaint!!)
+        }
+
         canvas.restore()
     }
 
     //3.绘制指针阴影
-    private fun drawPointShadow(canvas: Canvas) {
+    fun drawPointShadow(canvas: Canvas) {
         val currentDegree =
             ((currentValue - clockMinValue) * ((360 - openAngle) / clockPointNum) + 150).toInt()
         canvas.rotate(currentDegree.toFloat())
@@ -293,7 +303,7 @@ class DashBoardView @JvmOverloads constructor(
     }
 
     //4.绘制中间黑色圆形背景
-    private fun drawBlackCircle(canvas: Canvas) {
+    fun drawBlackCircle(canvas: Canvas) {
         canvas.restore()
         canvas.translate((paddingLeft + radiusDial).toFloat(), (paddingTop + radiusDial).toFloat())
         val pointerPaint = Paint()
@@ -304,7 +314,7 @@ class DashBoardView @JvmOverloads constructor(
     }
 
     //5.绘制表针
-    private fun drawPointer(canvas: Canvas) {
+    fun drawPointer(canvas: Canvas) {
         canvas.save()
         val currentDegree =
             ((currentValue - clockMinValue) * ((360 - openAngle) / clockPointNum) + 150).toInt()
@@ -322,7 +332,7 @@ class DashBoardView @JvmOverloads constructor(
     }
 
     //6.绘制深蓝色发光圆形
-    private fun drawBlueCircle(canvas: Canvas) {
+    fun drawBlueCircle(canvas: Canvas) {
         canvas.rotate(0f)
         canvas.restore()
         val pointerPaint = Paint()
@@ -334,7 +344,7 @@ class DashBoardView @JvmOverloads constructor(
     }
 
     //7.绘制表盘文字
-    private fun drawCircleText(canvas: Canvas) {
+    fun drawCircleText(canvas: Canvas) {
         //titlePaint!!.color = Color.WHITE
         titlePaint!!.color = titleDialColor
         titlePaint!!.textSize = titleDialSize.toFloat()

@@ -13,5 +13,7 @@
         <attr name="text_title_color" format="color" />
         <attr name="text_size_value" format="dimension" />
         <attr name="animator_play_time" format="integer" />
+        <attr name="text_data_unit" format="string" />
+        <attr name="text_clock_point_num" format="integer" />
     </declare-styleable>
 </resources>

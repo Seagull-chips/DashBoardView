@@ -8,8 +8,10 @@
 
     <com.seagull.dashboard.DashBoardView
         android:id="@+id/dash_board_view"
-        android:layout_width="720dp"
-        android:layout_height="720dp"
+        android:layout_width="480dp"
+        android:layout_height="480dp"
+        app:text_data_unit="RPM"
+        app:text_clock_point_num="240"
         android:background="@color/black"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
@@ -18,7 +20,7 @@
         android:id="@+id/seekBar"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:max="160"
+        android:max="10"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
