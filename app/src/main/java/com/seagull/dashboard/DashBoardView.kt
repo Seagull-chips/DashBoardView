@@ -44,7 +44,7 @@ class DashBoardView @JvmOverloads constructor(
 
     private var radiusDial = 0 //最大圆的半径
     private var mRealRadius = 0
-    private var currentValue = 0f
+    private var currentValue = 0f  //圆盘中间速度值
     private var clockPointNum = 100 //圆盘刻度总数
     private var clockMinValue = 0   //疑似圆盘初始值
     private var dataUnit = "km/h"  //中间显示文字
@@ -375,11 +375,6 @@ class DashBoardView @JvmOverloads constructor(
     //8.添加底部控件
 
     //9.动画
-    //百分比
-    fun setPercent(percent: Int) {
-        setCompleteDegree(percent.toFloat())
-    }
-
     private fun setCompleteDegree(degree: Float) {
         val animator = ValueAnimator.ofFloat(currentValue, degree)
         animator.addUpdateListener { animation ->
@@ -392,6 +387,10 @@ class DashBoardView @JvmOverloads constructor(
         animator.start()
     }
 
+    //由于prograssBar接收一个int类型的，类型转换一下，并且对外传值
+    fun setPercent(percent: Int) {
+        setCompleteDegree(percent.toFloat())
+    }
 
     //dp转px
     private fun dp2px(dpVal: Int): Int {
